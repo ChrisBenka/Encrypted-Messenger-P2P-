@@ -1,5 +1,5 @@
 
-# Created by Chris Benka on 2/17/17.
+# Created by Chris Benka on 2/21/17.
 # Copyright 2017 Chris Benka. All rights reserved.
 #This application is a simple encrypted peer to peer architecture (P2P)
 #chat application.
@@ -44,10 +44,7 @@ import hashlib
 argsList = sys.argv
 #block size in AES CBC mode encryption is 16 bytes
 BS = 16
-#padding function used
-pad = lambda s: s + (BS - len(s) % BS) * chr(BS - len(s) % BS)
-#unpaddinf function used
-unpad = lambda s : s[0:-ord(s[-1])]
+
 
 
 # If the user is the server
@@ -84,7 +81,28 @@ if argsList[1] == '--s':
                 #decrypt the ciphertext of the message
                 message = cipherObject.decrypt(ciphertext)
                 #unpad the message
-                message = unpad(message)
+                a =0
+                try:
+                    int(message[0])
+                    int(message[1])
+                    a = int(message[:2])
+                    message = message[2:]
+                except ValueError:
+                    ad = 3
+                try:
+                    int(message[0])
+                    a = int(message[:1])
+                    message = message[1:]
+                except ValueError:
+                    pas =3
+                count =0
+                padding = ''
+                while(count<a):
+                    padding = padding + '$'
+                    count = count+1
+                message = message.replace(padding,'')
+
+                #message = unpad(message,i,padd)
                 #seperate the plaintext from the MAC
                 (plaintext,partitioningItem,MAC) = message.partition('!!!!')
                 #Using the256 bit key above generate the HMAC off of the plaintext
@@ -93,7 +111,7 @@ if argsList[1] == '--s':
                 #if the MACs are different then the auth keys are not the same
                 #print an error
                 if(str(hmmmac.digest())!=MAC):
-                    print "error auth keys are not the same"
+                    print "error Sender is using unauthenticated key to send message"
 
                 #otherwise if they are the same then we can safely print
                 #the message recieved
@@ -103,11 +121,11 @@ if argsList[1] == '--s':
             elif item is sys.stdin:
                 #Read standard input and send via the connection
                 message = sys.stdin.readline()
-                #generate 256 bit key to be used for the hmac
+            #generate 256 bit key to be used for the hmac
                 k1 = hmac.new(argsList[5],'',hashlib.sha256)
-                #generate the hmac based off the message
+            #generate the hmac based off the message
                 hmmmac = hmac.new(k1.digest(),message,hashlib.sha256)
-                #generate 256 bit key based on the configKey
+            #generate 256 bit key based on the configKey
                 k2 = hmac.new(argsList[3],'',hashlib.sha256)
                 #generate random iv
                 iv = Random.new().read(AES.block_size)
@@ -116,14 +134,40 @@ if argsList[1] == '--s':
                 #concatonate the message and the hmac code
                 message =  message + '!!!!' + hmmmac.digest()
                 #pad the message
-                message = pad(message)
-                #encrypt the message(plaintext,hmac)
-                message = cipherObject.encrypt(message)
-                #prepend the iv to be used for decyrption
-                message = iv + '****' +  message
+                #message = pad(message,i,padd)
+
+                bytesToMod = (sys.getsizeof(message)-37) % BS
+                bytesToMod = BS - bytesToMod
+                if(bytesToMod<10):
+                    bytesToMod=bytesToMod-1
+                elif(bytesToMod>10):
+                    bytesToMod = bytesToMod-2
+                count = 0
+                while count< bytesToMod:
+                    message = message + '$'
+                    count = count +1
+                                #encrypt the message(plaintext,hmac)
+
+                succeeded = False
+                message = str(bytesToMod) + message
+                while(succeeded==False):
+                    try:
+                        message = cipherObject.encrypt(message)
+                        succeeded = True
+                    except ValueError:
+                        x = bytesToMod +1
+                        message = message.replace(str(bytesToMod),str(x))
+                        message = message + '$'
+
+                        bytesToMod = bytesToMod+1
+
+                                #prepend the iv to be used for decyrption
+                message =  iv + '****' +  message
                 #send the message
+
+                    #send the message
                 c.send(message)
-    #Terminate the connection
+        #Terminate the connection
     c.close()
 # If the user is the client
 elif argsList[1]== '--c':
@@ -151,8 +195,32 @@ elif argsList[1]== '--c':
                     cipherObject = AES.new(k2.digest(),AES.MODE_CBC,iv)
                     #decrypt the ciphertext of the message
                     message = cipherObject.decrypt(ciphertext)
+                    a =0
+                    try:
+                        int(message[0])
+                        int(message[1])
+                        a = int(message[:2])
+                        message = message[2:]
+                    except ValueError:
+                        ad = 2
+
+                    try:
+                        int(message[0])
+                        a = int(message[:1])
+                        message = message[1:]
+                    except ValueError:
+                        ad = 3
+                    count =0
+                    padding = ''
+                    while(count<a):
+                        padding = padding + '$'
+                        count = count+1
+                    message = message.replace(padding,'')
+
+
+
                     #unpad the message
-                    message = unpad(message)
+                    #message = unpad1(message,i,padd)
                     #seperate the plaintext from the MAC
                     (plaintext,partitioningItem,MAC) = message.partition('!!!!')
                     #Using the256 bit key above generate the HMAC off of the plaintext
@@ -161,7 +229,7 @@ elif argsList[1]== '--c':
                     #if the MACs are different then the auth keys are not the same
                     #print an error
                     if(str(hmmmac.digest())!=MAC):
-                        print "error auth keys are not the same"
+                        print "error Sender is using unauthenticated key to send message"
                     #otherwise if they are the same then we can safely print
                     #the message recieved
                     else:
@@ -186,11 +254,36 @@ elif argsList[1]== '--c':
                     #concatonate the message and the hmac code
                     message= message + '!!!!' + hmmmac.digest()
                     #pad the message
-                    message = pad(message)
+                    #message = padding(message,i,padd,BSs)
+
+
+                    bytesToMod = (sys.getsizeof(message)-37) % BS
+                    bytesToMod = BS - bytesToMod
+                    if(bytesToMod<10):
+                            bytesToMod=bytesToMod-1
+                    elif(bytesToMod>10):
+                            bytesToMod = bytesToMod-2
+                    count = 0
+                    while count< bytesToMod:
+                        message = message + '$'
+                        count = count +1
                     #encrypt the message(plaintext,hmac)
-                    message = cipherObject.encrypt(message)
+
+                    succeeded = False
+                    message = str(bytesToMod) + message
+                    while(succeeded==False):
+                        try:
+                            message = cipherObject.encrypt(message)
+                            succeeded = True
+                        except ValueError:
+                            x = bytesToMod +1
+                            message = message.replace(str(bytesToMod),str(x))
+                            message = message + '$'
+
+                            bytesToMod = bytesToMod+1
+
                     #prepend the iv to be used for decyrption
-                    message = iv + '****' +  message
+                    message =  iv + '****' +  message
                     #send the messag
                     s.send(message)
                     #Terminate the connection
