@@ -82,6 +82,7 @@ if argsList[1] == '--s':
                 message = cipherObject.decrypt(ciphertext)
                 #unpad the message
                 a =0
+                #look to find the length of Padding,case that number of padding chars>=10
                 try:
                     int(message[0])
                     int(message[1])
@@ -89,6 +90,7 @@ if argsList[1] == '--s':
                     message = message[2:]
                 except ValueError:
                     ad = 3
+                #look to find the length off padding, case that number of padding <10
                 try:
                     int(message[0])
                     a = int(message[:1])
@@ -97,12 +99,12 @@ if argsList[1] == '--s':
                     pas =3
                 count =0
                 padding = ''
+                #construct the padding then remove it 
                 while(count<a):
                     padding = padding + '$'
                     count = count+1
                 message = message.replace(padding,'')
-
-                #message = unpad(message,i,padd)
+                
                 #seperate the plaintext from the MAC
                 (plaintext,partitioningItem,MAC) = message.partition('!!!!')
                 #Using the256 bit key above generate the HMAC off of the plaintext
